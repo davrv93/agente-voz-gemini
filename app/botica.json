@@ -1,0 +1,18 @@
+{
+  "negocio": "Botica Santa Rosa (datos de ejemplo, ficticios)",
+  "horario": "Lunes a sábado de 8:00 a. m. a 10:00 p. m.; domingos de 9:00 a. m. a 2:00 p. m.",
+  "delivery": "Delivery en Surco, Miraflores y San Borja de 8:00 a. m. a 9:30 p. m. Gratis desde S/ 50; si no, cuesta S/ 6. Llega en unos 40 minutos.",
+  "pagos": "Efectivo, tarjeta y Yape.",
+  "productos": [
+    {"nombre": "Paracetamol 500 mg, caja x 100 tabletas", "precio": "S/ 12.50", "stock": true, "receta": false},
+    {"nombre": "Ibuprofeno 400 mg, caja x 100 tabletas", "precio": "S/ 18.00", "stock": true, "receta": false},
+    {"nombre": "Amoxicilina 500 mg, caja x 100 cápsulas", "precio": "S/ 35.00", "stock": true, "receta": true},
+    {"nombre": "Suero de rehidratación oral, sobre", "precio": "S/ 2.50", "stock": true, "receta": false},
+    {"nombre": "Protector solar FPS 50, 120 ml", "precio": "S/ 59.90", "stock": false, "receta": false}
+  ],
+  "reglas": [
+    "Nunca recomiendes dosis ni diagnostiques: eso lo hace un químico farmacéutico o un médico.",
+    "Si el producto pide receta, dilo y pide que la tengan a la mano.",
+    "Si alguien describe una emergencia, pide que llame al 106 (SAMU) o vaya a emergencia."
+  ]
+}

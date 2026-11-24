@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente de voz con Gemini</title>
+<style>
+:root{--fondo:#F5F5F7;--tarjeta:#FFFFFF;--tinta:#1D1D1F;--suave:#6E6E73;--linea:#E3E3E8;--acento:#0071E3;--ok:#1E8E3E;--mal:#C5221F;--oido:#7C3AED;--voz:#0071E3;--cerebro:#B45309}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{max-width:1080px;margin:0 auto;padding:28px 20px 8px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:end}
+h1{margin:0;font-size:28px;letter-spacing:-.02em}
+header p{margin:4px 0 0;color:var(--suave)}
+.estado{font-size:13px;color:var(--suave);background:var(--tarjeta);border:1px solid var(--linea);border-radius:999px;padding:6px 12px}
+.estado b{color:var(--tinta)}
+nav{max-width:1080px;margin:12px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap}
+nav button{border:1px solid var(--linea);background:var(--tarjeta);color:var(--tinta);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+nav button[aria-selected=true]{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+main{max-width:1080px;margin:0 auto;padding:16px 20px 48px}
+section{display:none}
+section.activa{display:block}
+.tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:18px;padding:22px;margin-bottom:16px}
+.tarjeta h2{margin:0 0 4px;font-size:20px}
+.tarjeta .que{margin:0 0 16px;color:var(--suave)}
+label{display:block;font-size:13px;color:var(--suave);margin:12px 0 4px}
+textarea,input,select{width:100%;font:inherit;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;background:#fff;color:var(--tinta)}
+textarea{min-height:90px;resize:vertical}
+.fila{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.btn{border:0;border-radius:999px;padding:11px 18px;font:inherit;font-weight:600;cursor:pointer;background:var(--acento);color:#fff}
+.btn.sec{background:#E8E8ED;color:var(--tinta)}
+.btn.grabando{background:var(--mal)}
+.btn:disabled{opacity:.5;cursor:wait}
+audio{width:100%;margin-top:14px}
+pre{background:#F5F5F7;border:1px solid var(--linea);border-radius:12px;padding:14px;overflow:auto;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:12px 0 0;white-space:pre-wrap}
+.info{font-size:13px;color:var(--suave);margin-top:8px}
+.error{color:var(--mal);font-size:14px;margin-top:10px}
+.tubo{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.etapa{border:1px solid var(--linea);border-radius:14px;padding:14px;min-height:120px;background:#FBFBFD}
+.etapa h3{margin:0 0 6px;font-size:14px;display:flex;justify-content:space-between}
+.etapa h3 span{font-weight:400;color:var(--suave)}
+.etapa.oido h3{color:var(--oido)} .etapa.cerebro h3{color:var(--cerebro)} .etapa.voz h3{color:var(--voz)}
+.etapa.lista{border-color:currentColor}
+.etapa p{margin:0;font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{font-size:12px;border-radius:999px;padding:2px 9px;background:#EEF;color:#334}
+.chat{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.burbuja{max-width:78%;padding:10px 14px;border-radius:16px;font-size:15px}
+.burbuja.cliente{align-self:flex-end;background:var(--acento);color:#fff;border-bottom-right-radius:4px}
+.burbuja.agente{align-self:flex-start;background:#E9E9EE;border-bottom-left-radius:4px}
+.burbuja small{display:block;opacity:.75;font-size:12px;margin-top:2px}
+.lineas .linea{display:grid;grid-template-columns:140px 1fr 160px;gap:8px;margin-top:8px}
+.nota{font-size:14px;background:#FFF8E6;border:1px solid #F3DFA2;border-radius:12px;padding:12px 14px;margin-top:14px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--linea)}
+@media (max-width:720px){.fila,.tubo{grid-template-columns:1fr}.lineas .linea{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Agente de voz con Gemini</h1>
+    <p>Escucha con Flash-Lite, piensa con Flash-Lite y habla con Flash TTS.</p>
+  </div>
+  <div class="estado" id="estado">Revisando…</div>
+</header>
+<nav role="tablist">
+  <button role="tab" data-paso="1" aria-selected="true">1 · Hola mundo</button>
+  <button role="tab" data-paso="2">2 · Voces y diálogo</button>
+  <button role="tab" data-paso="3">3 · Entender audio</button>
+  <button role="tab" data-paso="4">4 · El agente</button>
+  <button role="tab" data-paso="5">5 · Botica por voz</button>
+  <button role="tab" data-paso="6">6 · Costos y seguridad</button>
+</nav>
+<main>
+
+<section id="p1" class="activa">
+  <div class="tarjeta">
+    <h2>Paso 1 · Texto a voz</h2>
+    <p class="que">Escribe una frase y Gemini Flash TTS la convierte en audio WAV. El estilo dice cómo sonar y no se lee en voz alta.</p>
+    <label for="t1">Texto</label>
+    <textarea id="t1">Hola, soy tu asistente de voz. Hoy aprendemos a que una computadora hable con naturalidad.</textarea>
+    <div class="fila">
+      <div><label for="v1">Voz</label><select id="v1" class="voces"></select></div>
+      <div><label for="e1">Estilo (opcional)</label><input id="e1" value="cálido y tranquilo"></div>
+    </div>
+    <div class="acciones"><button class="btn" id="b1">Generar voz</button></div>
+    <audio id="a1" controls hidden></audio>
+    <div class="info" id="i1"></div><div class="error" id="x1"></div>
+  </div>
+</section>
+
+<section id="p2">
+  <div class="tarjeta">
+    <h2>Paso 2 · Dos voces en una sola llamada</h2>
+    <p class="que">Gemini acepta hasta 2 personajes por pedido. Cada línea lleva su personaje y, si quieres, su estilo. Puedes usar etiquetas como &lt;short pause&gt; o &lt;laugh&gt; dentro del texto.</p>
+    <div class="fila">
+      <div><label>Personaje A</label><input id="pa" value="Cliente"></div>
+      <div><label>Voz de A</label><select id="va" class="voces"></select></div>
+      <div><label>Personaje B</label><input id="pb" value="Boticaria"></div>
+      <div><label>Voz de B</label><select id="vb" class="voces"></select></div>
+    </div>
+    <div class="lineas" id="lineas"></div>
+    <div class="acciones">
+      <button class="btn sec" id="mas">+ Línea</button>
+      <button class="btn" id="b2">Generar diálogo</button>
+    </div>
+    <audio id="a2" controls hidden></audio>
+    <div class="info" id="i2"></div><div class="error" id="x2"></div>
+  </div>
+</section>
+
+<section id="p3">
+  <div class="tarjeta">
+    <h2>Paso 3 · Entender lo que alguien dice</h2>
+    <p class="que">Graba tu voz o sube un audio (también una nota de voz de WhatsApp). Flash-Lite devuelve un JSON con la transcripción, la intención y la emoción.</p>
+    <div class="acciones">
+      <button class="btn" id="g3">● Grabar</button>
+      <label class="btn sec" style="margin:0;color:var(--tinta)">Subir audio<input type="file" id="f3" accept="audio/*" hidden></label>
+    </div>
+    <audio id="a3" controls hidden></audio>
+    <pre id="j3" hidden></pre>
+    <div class="info" id="i3"></div><div class="error" id="x3"></div>
+  </div>
+</section>
+
+<section id="p4">
+  <div class="tarjeta">
+    <h2>Paso 4 · El agente: escuchar → pensar → hablar</h2>
+    <p class="que">Un solo audio pasa por tres etapas. Mira qué hace cada una y cuánto tarda.</p>
+    <div class="acciones">
+      <button class="btn" id="g4">● Hablarle al agente</button>
+      <label class="btn sec" style="margin:0;color:var(--tinta)">Subir audio<input type="file" id="f4" accept="audio/*" hidden></label>
+    </div>
+    <div class="tubo">
+      <div class="etapa oido" id="s-oido"><h3>1 · Escuchar <span id="t-oido">Flash-Lite</span></h3><p id="c-oido">Esperando audio…</p><div class="chips" id="k-oido"></div></div>
+      <div class="etapa cerebro" id="s-cerebro"><h3>2 · Pensar <span id="t-cerebro">Flash-Lite</span></h3><p id="c-cerebro">—</p></div>
+      <div class="etapa voz" id="s-voz"><h3>3 · Hablar <span id="t-voz">Flash TTS</span></h3><p id="c-voz">—</p></div>
+    </div>
+    <audio id="a4" controls hidden></audio>
+    <div class="info" id="i4"></div><div class="error" id="x4"></div>
+  </div>
+</section>
+
+<section id="p5">
+  <div class="tarjeta">
+    <h2>Paso 5 · La botica que contesta por voz</h2>
+    <p class="que" id="negocio">El agente solo responde con los datos de <code>app/botica.json</code> y recuerda la conversación. Si no sabe, deriva a una persona.</p>
+    <div class="acciones">
+      <button class="btn" id="g5">● Preguntar por voz</button>
+      <label class="btn sec" style="margin:0;color:var(--tinta)">Subir nota de voz<input type="file" id="f5" accept="audio/*" hidden></label>
+      <button class="btn sec" id="limpiar5">Nueva conversación</button>
+    </div>
+    <div class="chat" id="chat"></div>
+    <audio id="a5" controls hidden></audio>
+    <div class="error" id="x5"></div>
+  </div>
+</section>
+
+<section id="p6">
+  <div class="tarjeta">
+    <h2>Paso 6 · Costos, cuotas y seguridad</h2>
+    <p class="que">Cada respuesta de esta página muestra los tokens que usó. Así se calcula el costo real.</p>
+    <table>
+      <tr><th>Qué</th><th>Cuánto</th><th>Fuente</th></tr>
+      <tr><td>Audio de entrada</td><td>32 tokens por segundo (1 minuto = 1920 tokens)</td><td>ai.google.dev/gemini-api/docs/audio</td></tr>
+      <tr><td>Hablantes por pedido</td><td>Hasta 2 con voces prediseñadas</td><td>ai.google.dev/gemini-api/docs/speech-generation</td></tr>
+      <tr><td>Precios y cuota gratis</td><td>Cambian: revisa la página oficial</td><td>ai.google.dev/gemini-api/docs/pricing</td></tr>
+    </table>
+    <div class="nota"><b>La llave nunca sale del servidor.</b> El navegador habla con este servidor y este servidor con Google. Si pones la llave en el JavaScript, cualquiera la copia desde el navegador.</div>
+    <div class="nota">El servidor corta: pedidos de más de 8 MB, audios de más de 60 s, textos de más de 600 caracteres y más de <b id="limite">60</b> pedidos por hora desde la misma IP.</div>
+    <h2 style="margin-top:18px">Uso de esta sesión</h2>
+    <table id="uso"><tr><th>Etapa</th><th>Modelo</th><th>Segundos</th><th>Tokens entrada</th><th>Tokens salida</th></tr></table>
+  </div>
+</section>
+
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const VOCES_DESC = {Kore:"firme",Puck:"animada",Charon:"informativa",Sulafat:"cálida",Achird:"amigable",Aoede:"ligera",Leda:"juvenil",Orus:"firme",Gacrux:"madura",Vindemiatrix:"suave"};
+
+// Pestañas
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("activa", s.id === "p" + b.dataset.paso));
+  history.replaceState(null, "", "#paso" + b.dataset.paso);
+});
+const ini = (location.hash.match(/paso(\d)/) || [])[1];
+if (ini) document.querySelector(`nav button[data-paso="${ini}"]`).click();
+
+// Estado del servidor
+fetch("/api/estado").then(r => r.json()).then(e => {
+  $("#estado").innerHTML = e.hay_llave
+    ? `Voz <b>${e.modelo_voz}</b> · oído <b>${e.modelo_oido}</b>`
+    : `<b style="color:var(--mal)">Falta GEMINI_API_KEY en .env</b>`;
+  document.querySelectorAll("select.voces").forEach((s, i) => {
+    s.innerHTML = e.voces.map(v => `<option value="${v}">${v} · ${VOCES_DESC[v] || ""}</option>`).join("");
+  });
+  $("#v1").value = "Sulafat"; $("#va").value = "Puck"; $("#vb").value = "Kore";
+});
+
+const uso = [];
+function anotar(etapa, info) {
+  if (!info) return;
+  const f = document.createElement("tr");
+  f.innerHTML = `<td>${etapa}</td><td>${info.modelo}</td><td>${info.segundos}</td><td>${info.tokens_entrada}</td><td>${info.tokens_salida}</td>`;
+  $("#uso").appendChild(f);
+}
+const texto = info => info ? `${info.modelo} · ${info.segundos} s · ${info.tokens_entrada} tokens de entrada, ${info.tokens_salida} de salida` : "";
+
+async function api(ruta, cuerpo) {
+  const r = await fetch(ruta, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(cuerpo)});
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || r.status);
+  return d;
+}
+function sonar(el, b64) {
+  el.src = "data:audio/wav;base64," + b64; el.hidden = false; el.play().catch(() => {});
+}
+async function ocupado(boton, x, fn) {
+  boton.disabled = true; x.textContent = "";
+  try { await fn(); } catch (e) { x.textContent = e.message; } finally { boton.disabled = false; }
+}
+
+// Paso 1
+$("#b1").onclick = () => ocupado($("#b1"), $("#x1"), async () => {
+  const d = await api("/api/hablar", {texto: $("#t1").value, voz: $("#v1").value, estilo: $("#e1").value});
+  sonar($("#a1"), d.audio); $("#i1").textContent = texto(d.info); anotar("Paso 1 · hablar", d.info);
+});
+
+// Paso 2
+const ejemplo = [["A", "Hola, ¿hacen delivery a Surco?", "curioso"],
+                 ["B", "Sí, de ocho de la mañana a nueve y media de la noche. <short pause> Y es gratis desde cincuenta soles.", "amable y segura"],
+                 ["A", "<laugh> Perfecto, entonces pido ahora.", "contento"]];
+function linea(quien = "A", t = "", e = "") {
+  const d = document.createElement("div"); d.className = "linea";
+  d.innerHTML = `<select><option value="A">Personaje A</option><option value="B">Personaje B</option></select><input placeholder="Texto"><input placeholder="Estilo (opcional)">`;
+  d.children[0].value = quien; d.children[1].value = t; d.children[2].value = e;
+  $("#lineas").appendChild(d);
+}
+ejemplo.forEach(l => linea(...l));
+$("#mas").onclick = () => linea();
+$("#b2").onclick = () => ocupado($("#b2"), $("#x2"), async () => {
+  const nom = {A: $("#pa").value.trim(), B: $("#pb").value.trim()};
+  const lineas = [...document.querySelectorAll("#lineas .linea")].map(l => ({personaje: nom[l.children[0].value], texto: l.children[1].value, estilo: l.children[2].value})).filter(l => l.texto.trim());
+  const d = await api("/api/dialogo", {lineas, voces: {[nom.A]: $("#va").value, [nom.B]: $("#vb").value}});
+  sonar($("#a2"), d.audio); $("#i2").textContent = texto(d.info); anotar("Paso 2 · diálogo", d.info);
+});
+
+// Audio del navegador → WAV mono 16 kHz (Gemini lo entiende y el servidor puede medir su duración)
+async function aWav(blob) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+  const tasa = 16000, n = Math.ceil(buf.duration * tasa);
+  const off = new OfflineAudioContext(1, n, tasa);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const v = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const esc = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  esc(0, "RIFF"); v.setUint32(4, 36 + pcm.length * 2, true); esc(8, "WAVE"); esc(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, tasa, true);
+  v.setUint32(28, tasa * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); esc(36, "data"); v.setUint32(40, pcm.length * 2, true);
+  pcm.forEach((x, i) => v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x)) * 0x7fff, true));
+  ctx.close();
+  return new Blob([v], {type: "audio/wav"});
+}
+const b64 = blob => new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result.split(",")[1]); r.readAsDataURL(blob); });
+
+// Botón de grabar reutilizable: primer clic graba, segundo clic detiene y entrega el WAV
+function grabador(boton, alListo) {
+  let rec = null, partes = [];
+  const rotulo = boton.textContent;
+  boton.onclick = async () => {
+    if (rec) { rec.stop(); return; }
+    try {
+      const flujo = await navigator.mediaDevices.getUserMedia({audio: true});
+      rec = new MediaRecorder(flujo); partes = [];
+      rec.ondataavailable = e => partes.push(e.data);
+      rec.onstop = async () => {
+        flujo.getTracks().forEach(t => t.stop()); rec = null;
+        boton.textContent = rotulo; boton.classList.remove("grabando");
+        alListo(await aWav(new Blob(partes, {type: partes[0]?.type || "audio/webm"})));
+      };
+      rec.start(); boton.textContent = "■ Detener"; boton.classList.add("grabando");
+    } catch (e) { alert("No hay micrófono o no diste permiso. Puedes subir un audio."); }
+  };
+}
+function subir(input, alListo) { input.onchange = async () => { if (input.files[0]) alListo(await aWav(input.files[0])); input.value = ""; }; }
+
+// Paso 3
+async function entender(wav) {
+  $("#a3").src = URL.createObjectURL(wav); $("#a3").hidden = false;
+  await ocupado($("#g3"), $("#x3"), async () => {
+    $("#j3").hidden = false; $("#j3").textContent = "Escuchando…";
+    const d = await api("/api/entender", {audio: await b64(wav)});
+    $("#j3").textContent = JSON.stringify(d.entendio, null, 2); $("#i3").textContent = texto(d.info); anotar("Paso 3 · entender", d.info);
+  });
+}
+grabador($("#g3"), entender); subir($("#f3"), entender);
+
+// Paso 4
+function pintar(d) {
+  const e = d.entendio, p = d.pasos;
+  $("#c-oido").textContent = "«" + e.transcripcion + "»";
+  $("#k-oido").innerHTML = [e.intencion, e.emocion, e.urgente ? "urgente" : null, ...e.productos].filter(Boolean).map(c => `<span class="chip">${c}</span>`).join("");
+  $("#c-cerebro").textContent = d.decidio.respuesta + (d.decidio.derivar_a_humano ? "  (deriva a una persona)" : "");
+  $("#c-voz").textContent = "Estilo: " + d.decidio.estilo;
+  $("#t-oido").textContent = p.escuchar.segundos + " s · " + p.escuchar.modelo; $("#t-cerebro").textContent = p.pensar.segundos + " s · " + p.pensar.modelo; $("#t-voz").textContent = p.hablar.segundos + " s · " + p.hablar.modelo;
+  anotar("Agente · escuchar", p.escuchar); anotar("Agente · pensar", p.pensar); anotar("Agente · hablar", p.hablar);
+}
+async function agente(wav) {
+  await ocupado($("#g4"), $("#x4"), async () => {
+    $("#c-oido").textContent = "Escuchando…"; $("#c-cerebro").textContent = "—"; $("#c-voz").textContent = "—"; $("#k-oido").innerHTML = "";
+    const d = await api("/api/agente", {audio: await b64(wav), historial: []});
+    pintar(d); sonar($("#a4"), d.audio); $("#i4").textContent = `Total: ${d.total_segundos} s`;
+  });
+}
+grabador($("#g4"), agente); subir($("#f4"), agente);
+
+// Paso 5
+let historial = [];
+async function botica(wav) {
+  await ocupado($("#g5"), $("#x5"), async () => {
+    const d = await api("/api/agente", {audio: await b64(wav), historial});
+    const c = document.createElement("div"); c.className = "burbuja cliente";
+    c.innerHTML = `${d.entendio.transcripcion}<small>${d.entendio.intencion} · ${d.entendio.emocion}</small>`;
+    const a = document.createElement("div"); a.className = "burbuja agente";
+    a.innerHTML = `${d.decidio.respuesta}<small>${d.decidio.derivar_a_humano ? "deriva a una persona · " : ""}${d.total_segundos} s</small>`;
+    $("#chat").append(c, a);
+    historial.push({quien: "cliente", texto: d.entendio.transcripcion}, {quien: "agente", texto: d.decidio.respuesta});
+    sonar($("#a5"), d.audio);
+    anotar("Botica · escuchar", d.pasos.escuchar); anotar("Botica · pensar", d.pasos.pensar); anotar("Botica · hablar", d.pasos.hablar);
+  });
+}
+grabador($("#g5"), botica); subir($("#f5"), botica);
+$("#limpiar5").onclick = () => { historial = []; $("#chat").innerHTML = ""; $("#a5").hidden = true; };
+</script>
+</body>
+</html>

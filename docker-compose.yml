@@ -1,0 +1,21 @@
+name: agente-voz
+
+services:
+  agente:
+    build: .
+    image: agente-voz-gemini:local
+    env_file: .env
+    environment:
+      PUERTO: ${PUERTO:-8090}
+    ports:
+      - "127.0.0.1:${PUERTO:-8090}:8090"   # solo tu computadora puede abrirla
+    volumes:
+      - ./salida:/app/salida                # aquí quedan los audios que genera
+      - ./ejemplos:/app/ejemplos:ro         # tus propios audios de prueba
+      - ./app:/app/app:ro                   # el código: lo editas y reinicias, sin reconstruir
+      - ./pasos:/app/pasos:ro
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
